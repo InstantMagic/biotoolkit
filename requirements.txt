@@ -1,0 +1,80 @@
+# biotoolkit
+
+A small, dependency-free molecular biology toolkit in pure Python. It implements
+the everyday sequence operations used in synthetic biology and molecular cloning,
+written from scratch so the logic stays readable rather than hidden behind a library.
+
+I built this to keep my hands in the kind of computational work that sits next to
+the bench: reading sequences, planning cloning, and recoding genes for expression.
+
+## Features
+
+- **Sequence basics** — GC content, reverse complement, transcription, and
+  translation using the standard genetic code.
+- **ORF finding** — scans all six reading frames for open reading frames above a
+  length cutoff, on both strands.
+- **Primer Tm** — Wallace rule for short oligos and a GC-based formula for longer
+  ones, with automatic selection by length.
+- **Restriction mapping** — locates common enzyme sites and reports single cutters,
+  the enzymes most useful for linearizing a plasmid or dropping in an insert.
+- **Codon optimization** — recodes a coding sequence to E. coli's preferred codons
+  without changing the encoded protein.
+- **FASTA reader** — loads sequences from standard FASTA files.
+
+## Install
+
+No dependencies beyond the Python standard library (Python 3.9+).
+
+```bash
+git clone https://github.com/YOUR_USERNAME/biotoolkit.git
+cd biotoolkit
+```
+
+## Usage
+
+```python
+import biotoolkit as bt
+
+records = bt.read_fasta("examples/sample.fasta")
+name, seq = next(iter(records.items()))
+
+bt.gc_content(seq)            # 38.49
+bt.reverse_complement(seq)    # complementary strand, 5' to 3'
+bt.translate(seq)             # "MSKGEELFTGVVPILVE..."
+
+orfs = bt.find_orfs(seq, min_aa=50)
+orfs[0].length_aa             # 238
+
+bt.tm("ATGAGTAAAGGAGAAGAACT") # melting temperature estimate
+bt.single_cutters(seq)        # ["NdeI"]
+
+optimized = bt.optimize(seq)  # E. coli codon-optimized, same protein
+bt.gc_content(optimized)      # 53.97
+```
+
+## Demo
+
+```bash
+python examples/demo.py
+```
+
+Runs every feature against a partial GFP coding sequence and prints the results.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+## Notes on scope
+
+The codon optimizer is a teaching-grade model: it takes the single most frequent
+E. coli codon per residue. Production tools also balance GC content, avoid unwanted
+restriction sites and mRNA secondary structure, and tune the codon adaptation index.
+Primer Tm here uses the standard quick estimates; nearest-neighbor thermodynamics
+are more accurate. The aim of this project is clear, correct, readable
+implementations of the core ideas.
+
+## License
+
+MIT

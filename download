@@ -1,0 +1,70 @@
+"""Unit tests for biotoolkit. Run with:  python -m unittest -v"""
+
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import biotoolkit as bt
+
+
+class TestSequence(unittest.TestCase):
+    def test_gc_content(self):
+        self.assertEqual(bt.gc_content("GGCC"), 100.0)
+        self.assertEqual(bt.gc_content("ATAT"), 0.0)
+        self.assertEqual(bt.gc_content("ATGC"), 50.0)
+
+    def test_reverse_complement(self):
+        self.assertEqual(bt.reverse_complement("ATGC"), "GCAT")
+        # Reverse complement applied twice returns the original.
+        seq = "ATGGCCATTGTAATG"
+        self.assertEqual(bt.reverse_complement(bt.reverse_complement(seq)), seq)
+
+    def test_transcribe(self):
+        self.assertEqual(bt.transcribe("ATGC"), "AUGC")
+
+    def test_translate(self):
+        # ATG AAA TAA -> M K (stop)
+        self.assertEqual(bt.translate("ATGAAATAA"), "MK")
+        self.assertEqual(bt.translate("ATGAAATAA", to_stop=False), "MK*")
+
+    def test_validate_rejects_bad_input(self):
+        with self.assertRaises(ValueError):
+            bt.validate("ATGZ")
+
+
+class TestORF(unittest.TestCase):
+    def test_finds_simple_orf(self):
+        seq = "AAAATGAAAAAATAAGGG"
+        orfs = bt.find_orfs(seq, min_aa=1)
+        self.assertTrue(any(o.protein.startswith("MK") for o in orfs))
+
+
+class TestPrimers(unittest.TestCase):
+    def test_wallace(self):
+        # 2 GC * 4 + 2 AT * 2 = 8 + 4 = 12
+        self.assertEqual(bt.tm_wallace("ATGC"), 12.0)
+
+
+class TestRestriction(unittest.TestCase):
+    def test_finds_ecori(self):
+        hits = bt.find_sites("AAAGAATTCAAA")
+        self.assertTrue(any(h.enzyme == "EcoRI" and h.position == 3 for h in hits))
+
+    def test_single_cutter(self):
+        self.assertIn("EcoRI", bt.single_cutters("AAAGAATTCAAA"))
+
+
+class TestCodon(unittest.TestCase):
+    def test_optimization_preserves_protein(self):
+        seq = "ATGGCAATTGTGGGCTAA"
+        optimized = bt.optimize(seq)
+        self.assertEqual(
+            bt.translate(optimized, to_stop=False),
+            bt.translate(seq, to_stop=False),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

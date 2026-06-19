@@ -1,0 +1,69 @@
+"""Open reading frame (ORF) detection.
+
+Scans all six reading frames (three forward, three on the reverse complement)
+for stretches that begin with a start codon (ATG) and end at a stop codon.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .sequence import CODON_TABLE, reverse_complement, translate, validate
+
+START = "ATG"
+STOPS = {"TAA", "TAG", "TGA"}
+
+
+@dataclass
+class ORF:
+    """A single open reading frame found in a sequence."""
+    strand: str          # "+" or "-"
+    frame: int           # 1, 2, or 3
+    start: int           # 0-based start index on the given strand
+    end: int             # 0-based index just past the stop codon
+    dna: str             # the ORF nucleotide sequence, including the stop
+    protein: str         # translated protein, no stop symbol
+
+    @property
+    def length_aa(self) -> int:
+        return len(self.protein)
+
+
+def _find_in_strand(seq: str, strand: str, min_aa: int) -> list[ORF]:
+    orfs: list[ORF] = []
+    n = len(seq)
+    for frame in range(3):
+        i = frame
+        while i < n - 2:
+            if seq[i:i + 3] == START:
+                # Walk forward to the next in-frame stop codon.
+                j = i
+                while j < n - 2:
+                    codon = seq[j:j + 3]
+                    if codon in STOPS:
+                        dna = seq[i:j + 3]
+                        protein = translate(dna, to_stop=True)
+                        if len(protein) >= min_aa:
+                            orfs.append(
+                                ORF(strand, frame + 1, i, j + 3, dna, protein)
+                            )
+                        i = j + 3  # continue scanning after this ORF
+                        break
+                    j += 3
+                else:
+                    break  # ran off the end with no stop
+            else:
+                i += 3
+    return orfs
+
+
+def find_orfs(seq: str, min_aa: int = 30) -> list[ORF]:
+    """Return all ORFs at least ``min_aa`` residues long, longest first.
+
+    A minimum length of ~30 amino acids is a common heuristic to filter out
+    spurious short ORFs that occur by chance.
+    """
+    seq = validate(seq)
+    forward = _find_in_strand(seq, "+", min_aa)
+    reverse = _find_in_strand(reverse_complement(seq), "-", min_aa)
+    return sorted(forward + reverse, key=lambda o: o.length_aa, reverse=True)
