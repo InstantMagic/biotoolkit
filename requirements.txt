@@ -26,7 +26,7 @@ the bench: reading sequences, planning cloning, and recoding genes for expressio
 No dependencies beyond the Python standard library (Python 3.9+).
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/biotoolkit.git
+git clone https://github.com/InstantMagic/biotoolkit.git
 cd biotoolkit
 ```
 
